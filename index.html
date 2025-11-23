@@ -3,337 +3,382 @@
 <head>
 <meta charset="UTF-8">
 <title>Тести Історія УНІ — Онлайн</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-body { margin:0; font-family:'Inter',sans-serif; background:#e9eef5; color:#222; }
-header { background:linear-gradient(135deg,#355c7d,#6c5b7b,#c06c84); padding:28px; text-align:center; color:white; font-size:32px; font-weight:700; }
-.container { max-width:900px; margin:40px auto; background:white; padding:40px; border-radius:20px; box-shadow:0 6px 25px rgba(0,0,0,0.15); }
-.page { display:none; animation:fade .4s ease; }
-@keyframes fade { from{opacity:0} to{opacity:1} }
-.nav { text-align:center; margin-bottom:25px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
-.nav button { padding:12px 22px; background:#6c5b7b; color:white; border:none; border-radius:10px; cursor:pointer; transition:.25s; }
-.nav button:hover { background:#533f59; transform:translateY(-2px); }
-.question { background:#f6f6f8; padding:18px 20px; border-radius:12px; margin-bottom:20px;  }
-.question input[type=text]{width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;}
-.action { padding:14px 28px; background:#355c7d; border:none; color:white; border-radius:12px; font-size:17px; cursor:pointer; transition:.25s; }
-.action:hover{background:#26465e; transform:translateY(-2px);}
-.info-block{background:#f0f0f5;padding:15px;border-radius:10px;margin-bottom:20px;}
+:root{--primary:#355c7d;--muted:#6c5b7b;--card:#ffffff;--bg:#e9eef5;--accent:#c06c84}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:#222;-webkit-font-smoothing:antialiased}
+header{background:linear-gradient(135deg,var(--primary),var(--muted),var(--accent));padding:26px;text-align:center;color:white;font-size:28px;font-weight:700}
+.container{max-width:980px;margin:28px auto;background:var(--card);padding:28px;border-radius:16px;box-shadow:0 8px 28px rgba(15,23,42,0.12)}
+.page{display:none;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.nav{text-align:center;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.nav button{padding:10px 18px;background:var(--muted);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+.nav button:hover{transform:translateY(-3px)}
+.question{background:#f6f8fb;padding:16px 18px;border-radius:10px;margin-bottom:16px}
+.question b{font-size:16px}
+input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid #dcdfe6}
+.action{padding:12px 20px;background:var(--primary);border:none;color:white;border-radius:10px;font-size:15px;cursor:pointer;font-weight:700}
+.action[disabled]{opacity:.6;cursor:not-allowed}
+.info-block{background:#f0f3f7;padding:12px;border-radius:8px;margin-bottom:16px}
+.footer{text-align:center;color:#666;padding:14px;font-size:14px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:180px}
+@media (max-width:720px){header{font-size:20px}.container{padding:18px}}
+.feedback{margin-top:12px;padding:10px;border-radius:8px;display:none}
+.feedback.success{background:#e6ffef;color:#065f46;display:block}
+.feedback.error{background:#fff1f2;color:#7f1d1d;display:block}
 </style>
 
-
-<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function(){
-  if(window.emailjs) emailjs.init("UQZ8Gat2C9Zni0CKt");
+/* ВАШ Google Apps Script Web App URL (вже підтверджений користувачем) */
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzDA9jWra6-RgE6scdiAZokbSAgAo9f1GfDVIIuBh3KHVUEkPqGL5scmLo6UVqiGvq4gQ/exec";
+
+document.addEventListener('DOMContentLoaded', function(){
+  openTest('menu'); // show menu on load
 });
 
+// cross-browser robust page switcher
 function openTest(id){
-  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
-  const el=document.getElementById(id);
-  if(!el){ alert('Помилка: сторінку не знайдено ('+id+')'); return; }
-  el.style.display='block'; window.scrollTo(0,0);
+  var pages = document.getElementsByClassName('page');
+  for(var i=0;i<pages.length;i++){ pages[i].style.display='none'; }
+  var el = document.getElementById(id);
+  if(!el){ console.warn('Page not found', id); return; }
+  el.style.display = 'block';
+  window.scrollTo(0,0);
 }
 
+// get question label (number) from closest .question b
 function getQuestionLabel(el){
-  const q = el.closest('.question');
+  var q = el.closest('.question');
   if(!q) return '';
-  const b = q.querySelector('b');
-  if(b) return b.innerText.trim().replace('.','');
-  // fallback: first text node
-  const txt = q.innerText.trim().split('\n')[0];
-  return txt;
+  var b = q.querySelector('b');
+  if(b) return b.innerText.replace('.','').trim();
+  return '';
 }
 
-function sendAnswers(testId){
-  const container = document.getElementById(testId);
-  if(!container){ alert("Помилка: тест не знайдено"); return; }
+// show feedback message inside container
+function showFeedback(container, type, text){
+  var fb = container.querySelector('.feedback');
+  if(!fb){
+    fb = document.createElement('div'); fb.className = 'feedback';
+    container.appendChild(fb);
+  }
+  fb.className = 'feedback ' + (type==='success' ? 'success' : 'error');
+  fb.innerText = text;
+  fb.style.display = 'block';
+}
 
-  const inputs = container.querySelectorAll('input');
-  let studentName = '';
-  let group = '';
-  let answersMap = {}; // question -> array of answers (to handle checkboxes)
-  let freeTexts = []; // other text inputs like open answers
+// collect answers and post to Google Apps Script
+async function sendAnswers(testId, btn){
+  var container = document.getElementById(testId);
+  if(!container){ alert('Тест не знайдено'); return; }
 
-  inputs.forEach(el=>{
-    // text inputs (PІБ, Група, or open answer)
+  var inputs = container.querySelectorAll('input');
+  var payload = { test_id: testId, name:'', group:'', answers:'' };
+  var answers = [];
+
+  inputs.forEach(function(el){
     if(el.type === 'text'){
-      const label = el.dataset.label || el.name || '';
-      if(label.toLowerCase().includes('піб')) studentName = el.value.trim();
-      else if(label.toLowerCase().includes('груп')) group = el.value.trim();
-      else if(el.value.trim() !== '') {
-        const qlabel = getQuestionLabel(el) || label;
-        if(!answersMap[qlabel]) answersMap[qlabel]=[];
-        answersMap[qlabel].push(el.value.trim());
-      }
+      var label = (el.dataset && el.dataset.label) ? el.dataset.label.toLowerCase() : '';
+      if(label.includes('піб')) payload.name = el.value.trim();
+      else if(label.includes('груп')) payload.group = el.value.trim();
+      else if(el.value.trim() !== '') answers.push((el.dataset.label||'Текст')+': '+el.value.trim());
     }
-
-    // radio buttons
     if(el.type === 'radio' && el.checked){
-      const q = el.name || getQuestionLabel(el);
-      if(!answersMap[q]) answersMap[q]=[];
-      answersMap[q].push(el.value.trim());
+      var q = getQuestionLabel(el) || el.name;
+      answers.push('Питання '+q+': '+el.value);
     }
-
-    // checkboxes
     if(el.type === 'checkbox' && el.checked){
-      // try to find question number via closest .question
-      const qlabel = getQuestionLabel(el) || el.name || 'checkbox';
-      if(!answersMap[qlabel]) answersMap[qlabel]=[];
-      answersMap[qlabel].push(el.value.trim());
+      var q = getQuestionLabel(el) || el.name || 'checkbox';
+      answers.push('Питання '+q+': '+el.value);
     }
   });
 
-  // Build a pretty text block
-  let text = "=== ВІДПОВІДІ ТЕСТУ " + testId + " ===\n\n";
-  if(studentName) text += "ПІБ: " + studentName + "\n";
-  if(group) text += "Група: " + group + "\n";
-  text += "\n";
+  payload.answers = answers.join('\n');
 
-  // Sort keys numerically if possible
-  const keys = Object.keys(answersMap).sort((a,b)=>{
-    const na = parseInt(a); const nb = parseInt(b);
-    if(!isNaN(na) && !isNaN(nb)) return na-nb;
-    return a.localeCompare(b);
-  });
-
-  keys.forEach(k=>{
-    const vals = answersMap[k];
-    if(vals && vals.length){
-      text += "Питання " + k + ": " + vals.join(", ") + "\n";
-    }
-  });
-
-  // Send via EmailJS
-  const payload = {
-    test_id: testId,
-    student_name: studentName,
-    group: group,
-    answers: text
-  };
-
-  if(!window.emailjs){
-    alert("EmailJS не завантажено. Перевір підключення скрипта.");
+  // simple validation
+  if(!payload.name){
+    showFeedback(container, 'error', 'Будь ласка, вкажіть ПІБ перед відправкою.');
     return;
   }
 
-  emailjs.send("service_689e3od","template_ozcqtjj", payload)
-  .then(()=>{
-    alert("Відправлено успішно!");
-  }).catch((err)=>{
-    console.error(err);
-    alert("Помилка при відправленні. Перевір консоль.");
-  });
+  // UI lock
+  if(btn){ btn.disabled = true; btn.innerText = 'Відправлення...'; }
+
+  try{
+    await fetch(WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    showFeedback(container, 'success', 'Дякуємо — відповіді збережено у Google Sheets.');
+  }catch(e){
+    console.error(e);
+    showFeedback(container, 'error', 'Сталася помилка при відправленні.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.innerText = 'Відправити'; }
+  }
 }
 </script>
-
 </head>
 <body>
 <header>Тести Історія УНІ — Онлайн</header>
 <div class="container">
-<div class="nav">
-<button onclick="openTest('t1')">Варіант 1</button>
-<button onclick="openTest('t2')">Варіант 2</button>
-<button onclick="openTest('t3')">Варіант 3</button>
-<button onclick="openTest('t4')">Варіант 4</button>
-<button onclick="openTest('t5')">Варіант 5</button>
+
+  <div class="nav">
+    <button onclick="openTest('t1')" class="nav-btn">Варіант 1</button>
+    <button onclick="openTest('t2')" class="nav-btn">Варіант 2</button>
+    <button onclick="openTest('t3')" class="nav-btn">Варіант 3</button>
+    <button onclick="openTest('t4')" class="nav-btn">Варіант 4</button>
+    <button onclick="openTest('t5')" class="nav-btn">Варіант 5</button>
+  </div>
+
+  <div id="menu" class="page" style="display:block">
+    <h2>Оберіть варіант тесту</h2>
+    <p class="info-block">Натисніть потрібний варіант та заповніть поля. ПІБ обов'язкове для збереження в таблицю.</p>
+  </div>
+
+  <!-- ===== VARIANT 1 ===== -->
+  <div id="t1" class="page">
+    <h2>Варіант 1</h2>
+    <div class="info-block">
+      <b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
+      <b>Група:</b> <input type="text" data-label="Група">
+    </div>
+
+    <div class="question"><b>1.</b> «Невільне населення...»<br>
+      <input type="radio" name="1" value="А. смерди"> А. смерди<br>
+      <input type="radio" name="1" value="Б. челядь"> Б. челядь<br>
+      <input type="radio" name="1" value="В. закупи"> В. закупи<br>
+      <input type="radio" name="1" value="Г. ізгої"> Г. ізгої
+    </div>
+
+    <div class="question"><b>2</b> Дата об’єднання Києва і Новгорода<br>
+      <input type="radio" name="2" value="882"> 882<br>
+      <input type="radio" name="2" value="972"> 972<br>
+      <input type="radio" name="2" value="946"> 946<br>
+      <input type="radio" name="2" value="988"> 988
+    </div>
+
+    <div class="question"><b>3</b> «Збройні загони...»<br>
+      <input type="text" data-label="Питання 3">
+    </div>
+
+    <div class="question"><b>4</b> Риси роздробленості<br>
+      <label><input type="checkbox" value="А"> А</label>
+      <label><input type="checkbox" value="Б"> Б</label>
+      <label><input type="checkbox" value="В"> В</label>
+      <label><input type="checkbox" value="Г"> Г</label>
+      <label><input type="checkbox" value="Д"> Д</label>
+    </div>
+
+    <div class="question"><b>5</b> Похід Батия<br>
+      <input type="radio" name="5" value="1223"> 1223<br>
+      <input type="radio" name="5" value="1237"> 1237<br>
+      <input type="radio" name="5" value="1239"> 1239<br>
+      <input type="radio" name="5" value="1253"> 1253
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="action" onclick="openTest('menu')">Назад</button>
+      <button class="action" onclick="sendAnswers('t1', this)">Відправити</button>
+    </div>
+  </div>
+
+  <!-- ===== VARIANT 2 ===== -->
+  <div id="t2" class="page">
+    <h2>Варіант 2</h2>
+    <div class="info-block">
+      <b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
+      <b>Група:</b> <input type="text" data-label="Група">
+    </div>
+
+    <div class="question"><b>1.</b> «Люди, що втратили зв’язок...»<br>
+      <input type="radio" name="21" value="смерди"> А. смерди<br>
+      <input type="radio" name="21" value="челядь"> Б. челядь<br>
+      <input type="radio" name="21" value="закупи"> В. закупи<br>
+      <input type="radio" name="21" value="ізгої"> Г. ізгої
+    </div>
+
+    <div class="question"><b>2</b> Загибель Святослава<br>
+      <input type="radio" name="22" value="882"> 882<br>
+      <input type="radio" name="22" value="972"> 972<br>
+      <input type="radio" name="22" value="946"> 946<br>
+      <input type="radio" name="22" value="988"> 988
+    </div>
+
+    <div class="question"><b>3</b> «Селянська територіальна община...»<br>
+      <input type="text" data-label="Питання 3">
+    </div>
+
+    <div class="question"><b>4</b> Риси родоплемінного ладу<br>
+      <label><input type="checkbox" value="А"> А</label>
+      <label><input type="checkbox" value="Б"> Б</label>
+      <label><input type="checkbox" value="В"> В</label>
+      <label><input type="checkbox" value="Г"> Г</label>
+      <label><input type="checkbox" value="Д"> Д</label>
+    </div>
+
+    <div class="question"><b>5</b> Захоплення Києва<br>
+      <input type="radio" name="25" value="1223"> 1223<br>
+      <input type="radio" name="25" value="1237"> 1237<br>
+      <input type="radio" name="25" value="1239"> 1239<br>
+      <input type="radio" name="25" value="1240"> 1240
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="action" onclick="openTest('menu')">Назад</button>
+      <button class="action" onclick="sendAnswers('t2', this)">Відправити</button>
+    </div>
+  </div>
+
+  <!-- ===== VARIANT 3 ===== -->
+  <div id="t3" class="page">
+    <h2>Варіант 3</h2>
+    <div class="info-block">
+      <b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
+      <b>Група:</b> <input type="text" data-label="Група">
+    </div>
+
+    <div class="question"><b>1.</b> «Особисто вільні селяни...»<br>
+      <input type="radio" name="31" value="смерди"> А. смерди<br>
+      <input type="radio" name="31" value="челядь"> Б. челядь<br>
+      <input type="radio" name="31" value="закупи"> В. закупи<br>
+      <input type="radio" name="31" value="ізгої"> Г. ізгої
+    </div>
+
+    <div class="question"><b>2</b> Знищення Іскоростеня<br>
+      <input type="radio" name="32" value="882"> 882<br>
+      <input type="radio" name="32" value="972"> 972<br>
+      <input type="radio" name="32" value="946"> 946<br>
+      <input type="radio" name="32" value="988"> 988
+    </div>
+
+    <div class="question"><b>3</b> «Давня форма звичаєвого права...»<br>
+      <input type="text" data-label="Питання 3">
+    </div>
+
+    <div class="question"><b>4</b> Адміністративна реформа Володимира<br>
+      <label><input type="checkbox" value="А"> А. розмежування судочинства</label><br>
+      <label><input type="checkbox" value="Б"> Б. зменшення впливу варягів</label><br>
+      <label><input type="checkbox" value="В"> В. заміна родоплемінного устрою на територіальний</label><br>
+      <label><input type="checkbox" value="Г"> Г. запровадження смертної кари</label><br>
+      <label><input type="checkbox" value="Д"> Д. призначення намісників</label>
+    </div>
+
+    <div class="question"><b>5</b> Данило Галицький<br>
+      <input type="radio" name="35" value="1219"> 1219<br>
+      <input type="radio" name="35" value="1238"> 1238<br>
+      <input type="radio" name="35" value="1246"> 1246<br>
+      <input type="radio" name="35" value="1253"> 1253
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="action" onclick="openTest('menu')">Назад</button>
+      <button class="action" onclick="sendAnswers('t3', this)">Відправити</button>
+    </div>
+  </div>
+
+  <!-- ===== VARIANT 4 ===== -->
+  <div id="t4" class="page">
+    <h2>Варіант 4</h2>
+    <div class="info-block">
+      <b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
+      <b>Група:</b> <input type="text" data-label="Група">
+    </div>
+
+    <div class="question"><b>1.</b> «Селяни, які втратили власне господарство...»<br>
+      <input type="radio" name="41" value="смерди"> А. смерди<br>
+      <input type="radio" name="41" value="закупи"> В. закупи<br>
+      <input type="radio" name="41" value="челядь"> Б. челядь<br>
+      <input type="radio" name="41" value="ізгої"> Г. ізгої
+    </div>
+
+    <div class="question"><b>2</b> Хрещення Русі<br>
+      <input type="radio" name="42" value="882"> 882<br>
+      <input type="radio" name="42" value="972"> 972<br>
+      <input type="radio" name="42" value="946"> 946<br>
+      <input type="radio" name="42" value="988"> 988
+    </div>
+
+    <div class="question"><b>3</b> «Історико-документальні твори...»<br>
+      <input type="text" data-label="Питання 3">
+    </div>
+
+    <div class="question"><b>4</b> Причини занепаду ГВ держави<br>
+      <label><input type="checkbox" value="А"> А. боярська опозиція</label><br>
+      <label><input type="checkbox" value="Б"> Б. припинення династії</label><br>
+      <label><input type="checkbox" value="В"> В. втручання іноземних держав</label><br>
+      <label><input type="checkbox" value="Г"> Г. війна з тевтонцями</label><br>
+      <label><input type="checkbox" value="Д"> Д. союз з Європою</label><br>
+      <label><input type="checkbox" value="Е"> Е. об’єднання з Польщею</label>
+    </div>
+
+    <div class="question"><b>5</b> «Руська правда»<br>
+      <input type="radio" name="45" value="980-1015"> 980–1015<br>
+      <input type="radio" name="45" value="1019-1054"> 1019–1054<br>
+      <input type="radio" name="45" value="1054-1073"> 1054–1073<br>
+      <input type="radio" name="45" value="1125-1132"> 1125–1132
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="action" onclick="openTest('menu')">Назад</button>
+      <button class="action" onclick="sendAnswers('t4', this)">Відправити</button>
+    </div>
+  </div>
+
+  <!-- ===== VARIANT 5 ===== -->
+  <div id="t5" class="page">
+    <h2>Варіант 5</h2>
+    <div class="info-block">
+      <b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
+      <b>Група:</b> <input type="text" data-label="Група">
+    </div>
+
+    <div class="question"><b>1.</b> «Знаки князівської власності...»<br>
+      <input type="radio" name="51" value="полюддя"> А. полюддя<br>
+      <input type="radio" name="51" value="знамення"> В. знамення<br>
+      <input type="radio" name="51" value="погости"> Б. погости<br>
+      <input type="radio" name="51" value="ловища"> Г. ловища
+    </div>
+
+    <div class="question"><b>2</b> Любецький з’їзд<br>
+      <input type="radio" name="52" value="945"> 945<br>
+      <input type="radio" name="52" value="980"> 980<br>
+      <input type="radio" name="52" value="1097"> 1097<br>
+      <input type="radio" name="52" value="1169"> 1169
+    </div>
+
+    <div class="question"><b>3</b> «Народні збори...»<br>
+      <input type="text" data-label="Питання 3">
+    </div>
+
+    <div class="question"><b>4</b> Заходи Володимира Великого<br>
+      <label><input type="checkbox" value="А"> А. посадив синів у міста</label><br>
+      <label><input type="checkbox" value="Б"> Б. походи на Болгарію</label><br>
+      <label><input type="checkbox" value="В"> В. приєднання племен</label><br>
+      <label><input type="checkbox" value="Г"> Г. оборона від печенігів</label><br>
+      <label><input type="checkbox" value="Д"> Д. реформи</label><br>
+      <label><input type="checkbox" value="Е"> Е. династичні шлюби</label>
+    </div>
+
+    <div class="question"><b>5</b> Створення Київської Русі<br>
+      <input type="radio" name="55" value="III"> III<br>
+      <input type="radio" name="55" value="VI"> VI<br>
+      <input type="radio" name="55" value="IX"> IX<br>
+      <input type="radio" name="55" value="XIII"> XIII
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="action" onclick="openTest('menu')">Назад</button>
+      <button class="action" onclick="sendAnswers('t5', this)">Відправити</button>
+    </div>
+  </div>
+
+  <footer class="footer">© Тести Історія УНІ — Збереження в Google Sheets</footer>
 </div>
-<div id="menu" class="page" style="display:block"><h2>Оберіть варіант тесту</h2></div>
-<!-- tests copied from user -->
-
-<div id="t1" class="page"><h2>Варіант 1</h2>
-<div class="info-block">
-<b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
-<b>Група:</b> <input type="text" data-label="Група">
-</div>
-
-<div class="question"><b>1.</b> «Невільне населення...»<br>
-<input type="radio" name="1" value="А. смерди"> А. смерди<br>
-<input type="radio" name="1" value="Б. челядь"> Б. челядь<br>
-<input type="radio" name="1" value="В. закупи"> В. закупи<br>
-<input type="radio" name="1" value="Г. ізгої"> Г. ізгої</div>
-
-<div class="question"><b>2.</b> Дата об’єднання Києва і Новгорода<br>
-<input type="radio" name="2" value="882"> 882<br>
-<input type="radio" name="2" value="972"> 972<br>
-<input type="radio" name="2" value="946"> 946<br>
-<input type="radio" name="2" value="988"> 988</div>
-
-<div class="question"><b>3.</b> «Збройні загони...»<br>
-<input type="text" data-label="Питання 3"></div>
-
-<div class="question"><b>4.</b> Риси роздробленості<br>
-<input type="checkbox" value="А"> А
-<input type="checkbox" value="Б"> Б
-<input type="checkbox" value="В"> В
-<input type="checkbox" value="Г"> Г
-<input type="checkbox" value="Д"> Д</div>
-
-<div class="question"><b>5.</b> Похід Батия<br>
-<input type="radio" name="5" value="1223"> 1223<br>
-<input type="radio" name="5" value="1237"> 1237<br>
-<input type="radio" name="5" value="1239"> 1239<br>
-<input type="radio" name="5" value="1253"> 1253</div>
-
-<button class="action" onclick="openTest('menu')">Назад</button>
-<button class="action" onclick="sendAnswers('t1')">Відправити</button></div>
-
-
-<!-- VARIANT 2 -->
-<div id="t2" class="page"><h2>Варіант 2</h2>
-<div class="info-block">
-<b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
-<b>Група:</b> <input type="text" data-label="Група">
-</div>
-
-<div class="question"><b>1.</b> «Люди, що втратили зв’язок...»<br>
-<input type="radio" name="21" value="смерди"> А. смерди<br>
-<input type="radio" name="21" value="челядь"> Б. челядь<br>
-<input type="radio" name="21" value="закупи"> В. закупи<br>
-<input type="radio" name="21" value="ізгої"> Г. ізгої</div>
-
-<div class="question"><b>2.</b> Загибель Святослава<br>
-<input type="radio" name="22" value="882"> 882<br>
-<input type="radio" name="22" value="972"> 972<br>
-<input type="radio" name="22" value="946"> 946<br>
-<input type="radio" name="22" value="988"> 988</div>
-
-<div class="question"><b>3.</b> «Селянська територіальна община...»<br>
-<input type="text" data-label="Питання 3"></div>
-
-<div class="question"><b>4.</b> Риси родоплемінного ладу<br>
-<input type="checkbox" value="А"> А
-<input type="checkbox" value="Б"> Б
-<input type="checkbox" value="В"> В
-<input type="checkbox" value="Г"> Г
-<input type="checkbox" value="Д"> Д</div>
-
-<div class="question"><b>5.</b> Захоплення Києва<br>
-<input type="radio" name="25" value="1223"> 1223<br>
-<input type="radio" name="25" value="1237"> 1237<br>
-<input type="radio" name="25" value="1239"> 1239<br>
-<input type="radio" name="25" value="1240"> 1240</div>
-
-<button class="action" onclick="openTest('menu')">Назад</button>
-<button class="action" onclick="sendAnswers('t2')">Відправити</button></div>
-
-
-<!-- VARIANT 3 -->
-<div id="t3" class="page"><h2>Варіант 3</h2>
-<div class="info-block">
-<b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
-<b>Група:</b> <input type="text" data-label="Група">
-</div>
-
-<div class="question"><b>1.</b> «Особисто вільні селяни...»<br>
-<input type="radio" name="31" value="смерди"> А. смерди<br>
-<input type="radio" name="31" value="челядь"> Б. челядь<br>
-<input type="radio" name="31" value="закупи"> В. закупи<br>
-<input type="radio" name="31" value="ізгої"> Г. ізгої</div>
-
-<div class="question"><b>2.</b> Знищення Іскоростеня<br>
-<input type="radio" name="32" value="882"> 882<br>
-<input type="radio" name="32" value="972"> 972<br>
-<input type="radio" name="32" value="946"> 946<br>
-<input type="radio" name="32" value="988"> 988</div>
-
-<div class="question"><b>3.</b> «Давня форма звичаєвого права...»<br>
-<input type="text" data-label="Питання 3"></div>
-
-<div class="question"><b>4.</b> Адміністративна реформа Володимира<br>
-<input type="checkbox" value="А"> А. розмежування судочинства<br>
-<input type="checkbox" value="Б"> Б. зменшення впливу варягів<br>
-<input type="checkbox" value="В"> В. заміна родоплемінного устрою на територіальний<br>
-<input type="checkbox" value="Г"> Г. запровадження смертної кари<br>
-<input type="checkbox" value="Д"> Д. призначення намісників
-</div>
-
-<div class="question"><b>5.</b> Данило Галицький<br>
-<input type="radio" name="35" value="1219"> 1219<br>
-<input type="radio" name="35" value="1238"> 1238<br>
-<input type="radio" name="35" value="1246"> 1246<br>
-<input type="radio" name="35" value="1253"> 1253</div>
-
-<button class="action" onclick="openTest('menu')">Назад</button>
-<button class="action" onclick="sendAnswers('t3')">Відправити</button></div>
-
-<!-- VARIANT 4 -->
-<div id="t4" class="page"><h2>Варіант 4</h2>
-<div class="info-block">
-<b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
-<b>Група:</b> <input type="text" data-label="Група">
-</div>
-
-<div class="question"><b>1.</b> «Селяни, які втратили власне господарство...»<br>
-<input type="radio" name="41" value="смерди"> А. смерди<br>
-<input type="radio" name="41" value="закупи"> В. закупи<br>
-<input type="radio" name="41" value="челядь"> Б. челядь<br>
-<input type="radio" name="41" value="ізгої"> Г. ізгої</div>
-
-<div class="question"><b>2.</b> Хрещення Русі<br>
-<input type="radio" name="42" value="882"> 882<br>
-<input type="radio" name="42" value="972"> 972<br>
-<input type="radio" name="42" value="946"> 946<br>
-<input type="radio" name="42" value="988"> 988</div>
-
-<div class="question"><b>3.</b> «Історико-документальні твори...»<br>
-<input type="text" data-label="Питання 3"></div>
-
-<div class="question"><b>4.</b> Причини занепаду ГВ держави<br>
-<input type="checkbox" value="А"> А. боярська опозиція<br>
-<input type="checkbox" value="Б"> Б. припинення династії<br>
-<input type="checkbox" value="В"> В. втручання іноземних держав<br>
-<input type="checkbox" value="Г"> Г. війна з тевтонцями<br>
-<input type="checkbox" value="Д"> Д. союз з Європою<br>
-<input type="checkbox" value="Е"> Е. об’єднання з Польщею
-</div>
-
-<div class="question"><b>5.</b> «Руська правда»<br>
-<input type="radio" name="45" value="980-1015"> 980–1015<br>
-<input type="radio" name="45" value="1019-1054"> 1019–1054<br>
-<input type="radio" name="45" value="1054-1073"> 1054–1073<br>
-<input type="radio" name="45" value="1125-1132"> 1125–1132</div>
-
-<button class="action" onclick="openTest('menu')">Назад</button>
-<button class="action" onclick="sendAnswers('t4')">Відправити</button></div>
-
-<!-- VARIANT 5 -->
-<div id="t5" class="page"><h2>Варіант 5</h2>
-<div class="info-block">
-<b>ПІБ:</b> <input type="text" data-label="ПІБ"><br><br>
-<b>Група:</b> <input type="text" data-label="Група">
-</div>
-
-<div class="question"><b>1.</b> «Знаки князівської власності...»<br>
-<input type="radio" name="51" value="полюддя"> А. полюддя<br>
-<input type="radio" name="51" value="знамення"> В. знамення<br>
-<input type="radio" name="51" value="погости"> Б. погости<br>
-<input type="radio" name="51" value="ловища"> Г. ловища</div>
-
-<div class="question"><b>2.</b> Любецький з’їзд<br>
-<input type="radio" name="52" value="945"> 945<br>
-<input type="radio" name="52" value="980"> 980<br>
-<input type="radio" name="52" value="1097"> 1097<br>
-<input type="radio" name="52" value="1169"> 1169</div>
-
-<div class="question"><b>3.</b> «Народні збори...»<br>
-<input type="text" data-label="Питання 3"></div>
-
-<div class="question"><b>4.</b> Заходи Володимира Великого<br>
-<input type="checkbox" value="А"> А. посадив синів у міста<br>
-<input type="checkbox" value="Б"> Б. походи на Болгарію<br>
-<input type="checkbox" value="В"> В. приєднання племен<br>
-<input type="checkbox" value="Г"> Г. оборона від печенігів<br>
-<input type="checkbox" value="Д"> Д. реформи<br>
-<input type="checkbox" value="Е"> Е. династичні шлюби
-</div>
-
-<div class="question"><b>5.</b> Створення Київської Русі<br>
-<input type="radio" name="55" value="III"> III<br>
-<input type="radio" name="55" value="VI"> VI<br>
-<input type="radio" name="55" value="IX"> IX<br>
-<input type="radio" name="55" value="XIII"> XIII</div>
-
-<button class="action" onclick="openTest('menu')">Назад</button>
-<button class="action" onclick="sendAnswers('t5')">Відправити</button></div>
-
-</div></body></html>
+</body>
+</html>
